@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -8,7 +9,7 @@ export default function Dashboard() {
     pausedKeywords: 0,
     totalCampaigns: 0
   })
-  const [campaigns, setCampaigns] = useState([])
+  const [campaignGroups, setCampaignGroups] = useState({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -26,17 +27,42 @@ export default function Dashboard() {
         const campaignsData = await campaignsRes.json()
         const keywordsData = await keywordsRes.json()
 
-        const activeKeywords = keywordsData.keywords.filter(k => k.status === 'Aktiverad').length
-        const pausedKeywords = keywordsData.keywords.filter(k => k.status === 'Pausad').length
+        // Group campaigns by base name with ID
+        const grouped = campaignsData.campaigns.reduce((acc, campaign) => {
+          const baseName = campaign.name.split('-')[0].trim()
+          if (!acc[baseName]) {
+            acc[baseName] = {
+              groupId: campaign._id, // Store first campaign ID as group ID
+              campaigns: [],
+              totalKeywords: 0,
+              activeKeywords: 0,
+              pausedKeywords: 0
+            }
+          }
+          acc[baseName].campaigns.push(campaign)
+          return acc
+        }, {})
 
-        setStats({
-          totalKeywords: keywordsData.keywords.length,
-          activeKeywords,
-          pausedKeywords,
-          totalCampaigns: campaignsData.campaigns.length
+        // Add keyword stats to each group
+        keywordsData.keywords.forEach(keyword => {
+          const campaignBaseName = keyword.kampanj.split('-')[0].trim()
+          if (grouped[campaignBaseName]) {
+            grouped[campaignBaseName].totalKeywords++
+            if (keyword.status === 'Aktiverad') {
+              grouped[campaignBaseName].activeKeywords++
+            } else if (keyword.status === 'Pausad') {
+              grouped[campaignBaseName].pausedKeywords++
+            }
+          }
         })
 
-        setCampaigns(campaignsData.campaigns)
+        setCampaignGroups(grouped)
+        setStats({
+          totalKeywords: keywordsData.keywords.length,
+          activeKeywords: keywordsData.keywords.filter(k => k.status === 'Aktiverad').length,
+          pausedKeywords: keywordsData.keywords.filter(k => k.status === 'Pausad').length,
+          totalCampaigns: campaignsData.campaigns.length
+        })
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
       } finally {
@@ -76,35 +102,36 @@ export default function Dashboard() {
 
       <div className="bg-white rounded-lg shadow">
         <div className="p-4 border-b">
-          <h2 className="text-xl font-semibold">Campaigns Overview</h2>
+          <h2 className="text-xl font-semibold">Campaign Groups</h2>
         </div>
-        <div className="p-4">
-          <table className="min-w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-2 text-left">Campaign Name</th>
-                <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-left">Ad Group</th>
-                <th className="px-4 py-2 text-left">Views</th>
-              </tr>
-            </thead>
-            <tbody>
-              {campaigns.map((campaign) => (
-                <tr key={campaign._id} className="border-t">
-                  <td className="px-4 py-2">{campaign.name}</td>
-                  <td className="px-4 py-2">
-                    <span className={`px-2 py-1 rounded text-sm ${
-                      campaign.status === 'Aktiverad' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {campaign.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2">{campaign.adGroup}</td>
-                  <td className="px-4 py-2">{campaign.visningar}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="divide-y divide-gray-200">
+          {Object.entries(campaignGroups).map(([groupName, data]) => (
+            <Link 
+              key={data.groupId}
+              href={`/campaign/${data.groupId}`}
+              className="block hover:bg-gray-50"
+            >
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-medium text-gray-900">{groupName}</h3>
+                  <span className="text-sm text-gray-500">
+                    {data.campaigns.length} campaigns
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-sm text-gray-500">
+                  <div>
+                    <span className="font-medium text-green-600">{data.activeKeywords}</span> active keywords
+                  </div>
+                  <div>
+                    <span className="font-medium text-yellow-600">{data.pausedKeywords}</span> paused keywords
+                  </div>
+                  <div>
+                    <span className="font-medium">{data.totalKeywords}</span> total keywords
+                  </div>
+                </div>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
     </div>
