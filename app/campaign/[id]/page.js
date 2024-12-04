@@ -148,7 +148,7 @@ export default function CampaignGroup() {
         ref={tableRef}
         className={`transition-all duration-500 overflow-hidden ${
           selectedAdGroup 
-            ? 'max-h-[2000px] opacity-100' 
+            ? 'max-h-[5000px] opacity-100'
             : 'max-h-0 opacity-0'
         }`}
       >
@@ -193,8 +193,8 @@ export default function CampaignGroup() {
                   ))}
                 </tbody>
               </table>
-              {/* Bottom Back to Top Button */}
-              <div className="mt-6 flex justify-center">
+              {/* Bottom Back to Top Button - Aligned to right */}
+              <div className="mt-6 flex justify-end">
                 <button
                   onClick={scrollToTop}
                   className="text-blue-600 hover:text-blue-700 flex items-center bg-white px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all duration-200"
