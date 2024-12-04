@@ -13,7 +13,9 @@ export default function RootLayout({ children }) {
       <body>
         <Navigation />
         <main className="min-h-screen bg-gray-50">
-          {children}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {children}
+          </div>
         </main>
       </body>
     </html>
