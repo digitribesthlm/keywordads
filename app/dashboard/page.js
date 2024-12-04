@@ -30,16 +30,23 @@ export default function Dashboard() {
         // Group campaigns by base name with ID
         const grouped = campaignsData.campaigns.reduce((acc, campaign) => {
           const baseName = campaign.name.split('-')[0].trim()
-          if (!acc[baseName]) {
-            acc[baseName] = {
-              groupId: campaign._id, // Store first campaign ID as group ID
-              campaigns: [],
-              totalKeywords: 0,
-              activeKeywords: 0,
-              pausedKeywords: 0
+          
+          // Count keywords for this campaign
+          const campaignKeywords = keywordsData.keywords.filter(k => k.kampanj === campaign.name)
+          
+          // Only add campaign if it has keywords
+          if (campaignKeywords.length > 0) {
+            if (!acc[baseName]) {
+              acc[baseName] = {
+                groupId: campaign._id,
+                campaigns: [],
+                totalKeywords: 0,
+                activeKeywords: 0,
+                pausedKeywords: 0
+              }
             }
+            acc[baseName].campaigns.push(campaign)
           }
-          acc[baseName].campaigns.push(campaign)
           return acc
         }, {})
 
@@ -56,12 +63,20 @@ export default function Dashboard() {
           }
         })
 
-        setCampaignGroups(grouped)
+        // Filter out any empty groups (shouldn't happen but just in case)
+        const filteredGroups = Object.entries(grouped).reduce((acc, [key, value]) => {
+          if (value.totalKeywords > 0) {
+            acc[key] = value
+          }
+          return acc
+        }, {})
+
+        setCampaignGroups(filteredGroups)
         setStats({
           totalKeywords: keywordsData.keywords.length,
           activeKeywords: keywordsData.keywords.filter(k => k.status === 'Aktiverad').length,
           pausedKeywords: keywordsData.keywords.filter(k => k.status === 'Pausad').length,
-          totalCampaigns: campaignsData.campaigns.length
+          totalCampaigns: Object.keys(filteredGroups).length
         })
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
