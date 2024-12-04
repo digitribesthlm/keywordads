@@ -2,42 +2,58 @@ import { NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 
 export async function middleware(request) {
-  // Exclude login page and API routes from middleware
-  if (
-    request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/api/auth')
-  ) {
+  // Allow direct access to the home page
+  if (request.nextUrl.pathname === '/') {
     return NextResponse.next()
   }
 
-  const token = request.cookies.get('auth-token')
+  // Handle login page access - redirect to dashboard if already authenticated
+  if (request.nextUrl.pathname === '/login') {
+    const token = request.cookies.get('auth-token')
+    if (token) {
+      try {
+        await jwtVerify(
+          token.value,
+          new TextEncoder().encode(process.env.JWT_SECRET || '')
+        )
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      } catch (error) {
+        const response = NextResponse.next()
+        response.cookies.delete('auth-token')
+        return response
+      }
+    }
+    return NextResponse.next()
+  }
 
+  // Exclude API routes from middleware
+  if (request.nextUrl.pathname.startsWith('/api/auth')) {
+    return NextResponse.next()
+  }
+
+  // Protect all other routes
+  const token = request.cookies.get('auth-token')
   if (!token) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   try {
-    // Using jose instead of jsonwebtoken for Edge runtime compatibility
     await jwtVerify(
       token.value,
       new TextEncoder().encode(process.env.JWT_SECRET || '')
     )
     return NextResponse.next()
   } catch (error) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const response = NextResponse.redirect(new URL('/login', request.url))
+    response.cookies.delete('auth-token')
+    return response
   }
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api/auth (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - login (login page)
-     */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|login).*)',
+    '/',
+    '/login',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
   ],
 } 
